@@ -198,10 +198,11 @@ function URL(address, location, parser) {
   // for a given protocol. As the host also contains the port number we're going
   // override it with the hostname which contains no port number.
   //
+  /*
   if (!required(url.port, url.protocol)) {
     url.host = url.hostname;
     url.port = '';
-  }
+  }*/
 
   //
   // Parse down the `auth` for the username and password.
@@ -222,94 +223,35 @@ function URL(address, location, parser) {
   //
   url.href = url.toString();
 }
+var slashes = /^[A-Za-z][A-Za-z0-9+-.]*:\/\//;
+var ignore = { hash: 1, query: 1 }
+  , URL;
+function lolcation(loc) {
+  loc = loc || {};
+  URL = URL || require('./');
 
-/**
- * This is convenience method for changing properties in the URL instance to
- * insure that they all propagate correctly.
- *
- * @param {String} part          Property we need to adjust.
- * @param {Mixed} value          The newly assigned value.
- * @param {Boolean|Function} fn  When setting the query, it will be the function
- *                               used to parse the query.
- *                               When setting the protocol, double slash will be
- *                               removed from the final url if it is true.
- * @returns {URL}
- * @api public
- */
-URL.prototype.set = function set(part, value, fn) {
-  var url = this;
+  var finaldestination = {}
+    , type = typeof loc
+    , key;
 
-  switch (part) {
-    case 'query':
-      if ('string' === typeof value && value.length) {
-        value = (fn || qs.parse)(value);
-      }
+  if ('blob:' === loc.protocol) {
+    finaldestination = new URL(unescape(loc.pathname), {});
+  } else if ('string' === type) {
+    finaldestination = new URL(loc, {});
+    for (key in ignore) delete finaldestination[key];
+  } else if ('object' === type) {
+    for (key in loc) {
+      if (key in ignore) continue;
+      finaldestination[key] = loc[key];
+    }
 
-      url[part] = value;
-      break;
-
-    case 'port':
-      url[part] = value;
-
-      if (!required(value, url.protocol)) {
-        url.host = url.hostname;
-        url[part] = '';
-      } else if (value) {
-        url.host = url.hostname +':'+ value;
-      }
-
-      break;
-
-    case 'hostname':
-      url[part] = value;
-
-      if (url.port) value += ':'+ url.port;
-      url.host = value;
-      break;
-
-    case 'host':
-      url[part] = value;
-
-      if (/:\d+$/.test(value)) {
-        value = value.split(':');
-        url.port = value.pop();
-        url.hostname = value.join(':');
-      } else {
-        url.hostname = value;
-        url.port = '';
-      }
-
-      break;
-
-    case 'protocol':
-      url.protocol = value.toLowerCase();
-      url.slashes = !fn;
-      break;
-
-    case 'pathname':
-      url.pathname = value.length && value.charAt(0) !== '/' ? '/' + value : value;
-
-      break;
-
-    default:
-      url[part] = value;
+    if (finaldestination.slashes === undefined) {
+      finaldestination.slashes = slashes.test(loc.href);
+    }
   }
 
-  for (var i = 0; i < rules.length; i++) {
-    var ins = rules[i];
-
-    if (ins[4]) url[ins[1]] = url[ins[1]].toLowerCase();
-  }
-
-  url.origin = url.protocol && url.host && url.protocol !== 'file:'
-    ? url.protocol +'//'+ url.host
-    : 'null';
-
-  url.href = url.toString();
-
-  return url;
+  return finaldestination;
 };
-
 //
 // Expose the URL parser and some additional properties that might be useful for
 // others or testing.
